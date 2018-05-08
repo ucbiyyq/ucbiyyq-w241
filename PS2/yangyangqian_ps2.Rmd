@@ -1,7 +1,7 @@
 ---
-title: 'Problem Set 2'
-author: 'Experiments and Causality'
-output: html_document
+title: 'W241 Problem Set 2'
+author: 'Yang Yang Qian'
+output: pdf_document
 ---
 
 <!--
@@ -15,7 +15,7 @@ Some guidelines for submitting problem sets in this course:
 - It is highly recommended, although not required, that you use the RMarkdown feature in RStudio to compose your problem set answers. RMarkdown allows you to easily intermingle analysis code and answers in one document. It is of a similar design as `jupyter` and an ipython notebook.
 - You do not need to show work for trivial calculations, but showing work is always allowed.
 - For answers that involve a narrative response, please feel free to describe the key concept directly and briefly, if you can do so, and do not feel pressure to go on at length.
-- Please ask us questions about the problem set if you get stuck. **Don’t spend more than 20 minutes puzzling over what a problem means.** 
+- Please ask us questions about the problem set if you get stuck. **Don't spend more than 20 minutes puzzling over what a problem means.** 
 - Please ensure that someone (us!) can compile your solution set. The best way is to use the web-hosted links we've provided. 
 --> 
 
@@ -23,42 +23,83 @@ Some guidelines for submitting problem sets in this course:
 The Clingingsmith, Khwaja, and Kremer study discussed in section 3.5 may be be used to test the sharp null hypothesis that winning the visa lottery for the pilgrimage to Mecca had no effect on the views of Pakistani Muslims toward people from other countries. Assume that the Pakistani authorities assigned visas using complete random assignment. 
 
 ```{r, echo = FALSE}
-d3.6 <- read.csv("./data/Clingingsmith.2009.csv")
-head(d3.6)
+library(data.table)
+q1.d3.6 <- data.table( read.csv("./data/Clingingsmith.2009.csv") )
+# head(q1.d3.6)
+# summary(q1.d3.6)
+# str(q1.d3.6)
+
+# sanity check on ate from the data
+# q1.poc <- q1.d3.6[success==0,mean(views)]
+# q1.pot <- q1.d3.6[success==1,mean(views)]
+# q1.ate <- q1.pot - q1.poc
+q1.m1 <- q1.d3.6[,lm(views ~ success)]
+# ate is a view improvement of roughly 0.475
+q1.ate <- q1.m1$coefficients[2]
 
 ```
-a. Conduct 10,000 simulated random assignments under the sharp null hypothesis. (Don't just copy the code from the async, think about how to write this yourself.) 
+\newpage
+## 1.a. 
+Conduct 10,000 simulated random assignments under the sharp null hypothesis. (Don't just copy the code from the async, think about how to write this yourself.) 
+
+```{r}
+# conducting 1 simulated random assignment under the sharp null hypothesis (e.g. matters not if person won visa, their view would not have changed)
+# so we flip a fair coin for each person in population, 1 = won visa (treatment), 0 = did not win visa (control)
+# ... and we don't change the views, because we are assuming that assignment to win or not win a visa would not have changed it at all
+
+# set.seed(87542)
+# q1.d3.6 <- q1.d3.6[, success.q1.a := replicate(nrow(q1.d3.6), rbinom(1,1,0.5))]
+# q1.m2 <- q1.d3.6[,lm(views ~ success.q1.a)]
+# q1.ate.q1.a <- q1.m2$coefficients[2]
+
+
+# to conduct 10,000 simulated random assignments under the sharp null hypothesis, just need to create a simulate study function and call it 10,000 times
+# then get a distribution of ATEs
+set.seed(87542)
+q1.sim.study <- function() {
+    q1.d3.6 <- q1.d3.6[, success.q1.a := replicate(nrow(q1.d3.6), rbinom(1,1,0.5))]
+    q1.m2 <- q1.d3.6[,lm(views ~ success.q1.a)]
+    q1.ate.q1.a <- q1.m2$coefficients[2]
+    return(q1.ate.q1.a)
+}
+q1.sim.results <- replicate(10000, q1.sim.study())
+hist(q1.sim.results)
+```
+
+## 2.b. 
+How many of the simulated random assignments generate an estimated ATE that is at least as large as the actual estimate of the ATE? 
+
+**about 15**
+
+```{r}
+data.table(q1.sim.results)[,sim.ate.as.large.as.actual.ate:=(q1.sim.results >= q1.ate)][,.N,by=sim.ate.as.large.as.actual.ate]
+```
+
+## 2.c. 
+What is the implied one-tailed p-value? 
 
 ```{r}
 
 ```
 
-b. How many of the simulated random assignments generate an estimated ATE that is at least as large as the actual estimate of the ATE? 
+## 2.d. 
+How many of the simulated random assignments generate an estimated ATE that is at least as large *in absolute value* as the actual estimate of the ATE? 
+
+**about 31, roughly double that of the one-tailed test**
 
 ```{r}
-
+data.table(q1.sim.results)[,sim.ate.abs.as.large.as.actual.ate:=(abs(q1.sim.results) >= abs(q1.ate))][,.N,by=sim.ate.abs.as.large.as.actual.ate]
 ```
 
-c. What is the implied one-tailed p-value? 
-
-```{r}
-
-```
-
-d. How many of the simulated random assignments generate an estimated ATE that is at least as large *in absolute value* as the actual estimate of the ATE? 
-
-```{r}
-
-```
-
-e. What is the implied two-tailed p-value? 
+## 2.e. 
+What is the implied two-tailed p-value? 
 
 ```{r}
 
 ```
 
 
-
+\newpage
 # 2.FE exercise 3.8
 Naturally occurring experiments sometimes involve what is, in effect, block random assignment. For example, Titiunik studies the effect of lotteries that determine whether state senators in TX and AR serve two-year or four-year terms in the aftermath of decennial redistricting. These lotteries are conducted within each state, and so there are effectively two distinct experiments on the effects of term length. An interesting outcome variable is the number of bills (legislative proposals) that each senator introduces during a legislative session. The table below lists the number of bills introduced by senators in both states during 2003. 
 
@@ -128,11 +169,11 @@ b. Suppose that clusters are instead formed by grouping observations {1,14}, {2,
 c. Why do the two methods of forming clusters lead to different standard errors? What are the implications for the design of cluster randomized experiments? 
 
 # 4. More Practice #1
-You are an employee of a newspaper and are planning an experiment to demonstrate to Apple that online advertising on your website causes people to buy iPhones. Each site visitor shown the ad campaign is exposed to $0.10 worth of advertising for iPhones. (Assume all users could see ads.) There are 1,000,000 users available to be shown ads on your newspaper’s website during the one week campaign. 
+You are an employee of a newspaper and are planning an experiment to demonstrate to Apple that online advertising on your website causes people to buy iPhones. Each site visitor shown the ad campaign is exposed to $0.10 worth of advertising for iPhones. (Assume all users could see ads.) There are 1,000,000 users available to be shown ads on your newspaper's website during the one week campaign. 
 
-Apple indicates that they make a profit of $100 every time an iPhone sells and that 0.5% of visitors to your newspaper’s website buy an iPhone in a given week in general, in the absence of any advertising.
+Apple indicates that they make a profit of $100 every time an iPhone sells and that 0.5% of visitors to your newspaper's website buy an iPhone in a given week in general, in the absence of any advertising.
 
-a. By how much does the ad campaign need to increase the probability of purchase in order to be “worth it” and a positive ROI (supposing there are no long-run effects and all the effects are measured within that week)?
+a. By how much does the ad campaign need to increase the probability of purchase in order to be "worth it" and a positive ROI (supposing there are no long-run effects and all the effects are measured within that week)?
 
 ```{r}
 
@@ -144,7 +185,7 @@ b. Assume the measured effect is 0.2 percentage points. If users are split 50:50
 
 ```
 
-  + **Note:** The standard error for a two-sample proportion test is $\sqrt{p(1-p)*(\frac{1}{n_{1}}+\frac{1}{n_{2}})}$ where $p=\frac{x_{1}+x_{2}}{n_{1}+n_{2}}$, where $x$ and $n$ refer to the number of “successes” (here, purchases) over the number of “trials” (here, site visits). The length of each tail of a 95% confidence interval is calculated by multiplying the standard error by 1.96.
+  + **Note:** The standard error for a two-sample proportion test is $\sqrt{p(1-p)*(\frac{1}{n_{1}}+\frac{1}{n_{2}})}$ where $p=\frac{x_{1}+x_{2}}{n_{1}+n_{2}}$, where $x$ and $n$ refer to the number of "successes" (here, purchases) over the number of "trials" (here, site visits). The length of each tail of a 95% confidence interval is calculated by multiplying the standard error by 1.96.
   
 c. Is this confidence interval precise enough that you would recommend running this experiment? Why or why not?
 
