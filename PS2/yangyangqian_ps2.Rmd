@@ -63,7 +63,8 @@ q1.sim.study <- function() {
     return(q1.ate.q1.a)
 }
 q1.sim.results <- replicate(10000, q1.sim.study())
-hist(q1.sim.results)
+hist(q1.sim.results, xlab="simulated ATEs", main=paste("Frequencies of simulated ATEs, vs actual estimated ATE: ",round(q1.ate,3)))
+abline(v=q1.ate,col="green")
 ```
 
 ## 2.b. 
@@ -78,8 +79,16 @@ data.table(q1.sim.results)[,sim.ate.as.large.as.actual.ate:=(q1.sim.results >= q
 ## 2.c. 
 What is the implied one-tailed p-value? 
 
-```{r}
+**0, very unlikely**
 
+```{r}
+# # find the t statistic, given our distribution of simulated ATEs, vs the actual estimated ATE
+# q1.t <- (mean(q1.sim.results)-q1.ate) / ( sd(q1.sim.results)/sqrt(length(q1.sim.results)) )
+# # find the one-tailed p-value, the chances that our t statistic is less than the estimated ATE
+# pt(-abs(q1.t),df=length(q1.sim.results)-1)
+
+# find the one-tailed p-value
+pt(q=mean(q1.sim.results), n=length(q1.sim.results), df=length(q1.sim.results)-1, lower.tail=TRUE)
 ```
 
 ## 2.d. 
@@ -94,7 +103,12 @@ data.table(q1.sim.results)[,sim.ate.abs.as.large.as.actual.ate:=(abs(q1.sim.resu
 ## 2.e. 
 What is the implied two-tailed p-value? 
 
+**still 0, very unlikely our **
+
 ```{r}
+
+# find the two-tailed p-value
+2 * pt(q=mean(q1.sim.results), n=length(q1.sim.results), df=length(q1.sim.results)-1, lower.tail=TRUE)
 
 ```
 
