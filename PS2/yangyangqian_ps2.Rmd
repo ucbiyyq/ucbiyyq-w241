@@ -79,7 +79,7 @@ data.table(q1.sim.results)[,sim.ate.as.large.as.actual.ate:=(q1.sim.results >= q
 ## 2.c. 
 What is the implied one-tailed p-value? 
 
-**0, very unlikely**
+**implied one-tailed p-value is about 0.0015**
 
 ```{r}
 # # find the t statistic, given our distribution of simulated ATEs, vs the actual estimated ATE
@@ -88,7 +88,10 @@ What is the implied one-tailed p-value?
 # pt(-abs(q1.t),df=length(q1.sim.results)-1)
 
 # find the one-tailed p-value
-pt(q=mean(q1.sim.results), n=length(q1.sim.results), df=length(q1.sim.results)-1, lower.tail=TRUE)
+# pt(q=mean(q1.sim.results), n=length(q1.sim.results), df=length(q1.sim.results)-1, lower.tail=TRUE)
+
+
+mean(q1.sim.results > q1.ate)
 ```
 
 ## 2.d. 
@@ -103,13 +106,15 @@ data.table(q1.sim.results)[,sim.ate.abs.as.large.as.actual.ate:=(abs(q1.sim.resu
 ## 2.e. 
 What is the implied two-tailed p-value? 
 
-**still 0, very unlikely our **
+**implied two-tailed p-value is about 0.0031**
 
 ```{r}
+# # find the two-tailed p-value
+# 2 * pt(q=mean(q1.sim.results), n=length(q1.sim.results), df=length(q1.sim.results)-1, lower.tail=TRUE)
 
-# find the two-tailed p-value
-2 * pt(q=mean(q1.sim.results), n=length(q1.sim.results), df=length(q1.sim.results)-1, lower.tail=TRUE)
-
+mean(abs(q1.sim.results) > abs(q1.ate))
+# or
+mean(q1.sim.results > q1.ate) * 2
 ```
 
 
@@ -121,14 +126,29 @@ If you're interested, or would like more clarification, the published version of
 
 ```{r}
 library(foreign)
-d3.8 <- read.dta("./data/Titiunik.2010.dta")
-head(d3.8)
+q2.d3.8 <- data.table(read.dta("./data/Titiunik.2010.dta"))
+# head(q2.d3.8)
+# summary(q2.d3.8)
+# str(q2.d3.8)
+# hist(q2.d3.8$term2year)
+# hist(q2.d3.8$bills_introduced)
+# hist(q2.d3.8$texas0_arkansas1)
+q2.d3.8[texas0_arkansas1==0,plot(bills_introduced ~ term2year,main="Texas")]
+q2.d3.8[texas0_arkansas1==1,plot(bills_introduced ~ term2year,main="Arkansas")]
 ```
 
 a. For each state, estimate the effect of having a two-year term on the number of bills introduced. 
 
-```{r}
+**for Texas, the effect of having a two-year term on the number of bills introduced is about -13**
 
+**for Arkansas, the effect of having a two-year term on the number of bills introduced is about -56**
+
+```{r}
+# use OLS regression to estimate the effect on number of bills introduced, by the 2-year term, and the blocking variable texas-vs-arkansas
+q2.m1 <- q2.d3.8[,lm(bills_introduced ~ term2year + texas0_arkansas1)]
+(q2.m1)
+q2.ate.2y.texas <- q2.m1$coefficients[2]
+q2.ate.2y.arkansas <- q2.m1$coefficients[2] + q2.m1$coefficients[3]
 ```
 
 b. For each state, estimate the standard error of the estimated ATE. 
