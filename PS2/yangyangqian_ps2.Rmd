@@ -126,6 +126,7 @@ If you're interested, or would like more clarification, the published version of
 
 ```{r}
 library(foreign)
+library(data.table)
 q2.d3.8 <- data.table(read.dta("./data/Titiunik.2010.dta"))
 # head(q2.d3.8)
 # summary(q2.d3.8)
@@ -133,8 +134,8 @@ q2.d3.8 <- data.table(read.dta("./data/Titiunik.2010.dta"))
 # hist(q2.d3.8$term2year)
 # hist(q2.d3.8$bills_introduced)
 # hist(q2.d3.8$texas0_arkansas1)
-q2.d3.8[texas0_arkansas1==0,plot(bills_introduced ~ term2year,main="Texas")]
-q2.d3.8[texas0_arkansas1==1,plot(bills_introduced ~ term2year,main="Arkansas")]
+# q2.d3.8[texas0_arkansas1==0,plot(bills_introduced ~ term2year,main="Texas")]
+# q2.d3.8[texas0_arkansas1==1,plot(bills_introduced ~ term2year,main="Arkansas")]
 ```
 
 a. For each state, estimate the effect of having a two-year term on the number of bills introduced. 
