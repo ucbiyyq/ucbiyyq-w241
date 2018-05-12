@@ -136,6 +136,7 @@ q2.d3.8 <- data.table(read.dta("./data/Titiunik.2010.dta"))
 # hist(q2.d3.8$texas0_arkansas1)
 # q2.d3.8[texas0_arkansas1==0,plot(bills_introduced ~ term2year,main="Texas")]
 # q2.d3.8[texas0_arkansas1==1,plot(bills_introduced ~ term2year,main="Arkansas")]
+q2.d3.8[,interaction.plot(term2year,texas0_arkansas1,bills_introduced)]
 ```
 
 a. For each state, estimate the effect of having a two-year term on the number of bills introduced. 
@@ -145,9 +146,25 @@ a. For each state, estimate the effect of having a two-year term on the number o
 **for Arkansas, the effect of having a two-year term on the number of bills introduced is about -56**
 
 ```{r}
+# use basic methods to estimate the effect on number of bills introduced, by the 2-year term, and the blocking variable texas-vs-arkansas
+dcast(
+    q2.d3.8[,list(mu=mean(bills_introduced)),by=c("term2year","texas0_arkansas1")] 
+    ,texas0_arkansas1 ~ term2year
+    ,value.var = "mu"
+)
+
+q2.ate.2y.texas.basic <- q2.d3.8[texas0_arkansas1==0 & term2year==1,mean(bills_introduced)] - q2.d3.8[texas0_arkansas1==0 & term2year==0,mean(bills_introduced)]
+# -16.74167
+
+q2.ate.2y.arkansas.basic <- q2.d3.8[texas0_arkansas1==1 & term2year==1,mean(bills_introduced)] - q2.d3.8[texas0_arkansas1==1 & term2year==0,mean(bills_introduced)]
+# -10.09477
+
+
 # use OLS regression to estimate the effect on number of bills introduced, by the 2-year term, and the blocking variable texas-vs-arkansas
-q2.m1 <- q2.d3.8[,lm(bills_introduced ~ term2year + texas0_arkansas1)]
+q2.m1 <- q2.d3.8[texas0_arkansas1==0,lm(bills_introduced ~ term2year)]
 (q2.m1)
+q2.m2 <- q2.d3.8[texas0_arkansas1==1,lm(bills_introduced ~ term2year)]
+(q2.m2)
 q2.ate.2y.texas <- q2.m1$coefficients[2]
 q2.ate.2y.arkansas <- q2.m1$coefficients[2] + q2.m1$coefficients[3]
 ```
