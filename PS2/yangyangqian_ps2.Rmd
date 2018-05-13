@@ -141,9 +141,9 @@ q2.d3.8[,interaction.plot(term2year,texas0_arkansas1,bills_introduced)]
 
 a. For each state, estimate the effect of having a two-year term on the number of bills introduced. 
 
-**for Texas, the effect of having a two-year term on the number of bills introduced is about -13**
+**for Texas, the effect of having a two-year term on the number of bills introduced is about -17**
 
-**for Arkansas, the effect of having a two-year term on the number of bills introduced is about -56**
+**for Arkansas, the effect of having a two-year term on the number of bills introduced is about -11**
 
 ```{r}
 # use basic methods to estimate the effect on number of bills introduced, by the 2-year term, and the blocking variable texas-vs-arkansas
@@ -165,13 +165,43 @@ q2.m1 <- q2.d3.8[texas0_arkansas1==0,lm(bills_introduced ~ term2year)]
 (q2.m1)
 q2.m2 <- q2.d3.8[texas0_arkansas1==1,lm(bills_introduced ~ term2year)]
 (q2.m2)
-q2.ate.2y.texas <- q2.m1$coefficients[2]
-q2.ate.2y.arkansas <- q2.m1$coefficients[2] + q2.m1$coefficients[3]
+q2.ate.2y.texas.ols <- q2.m1$coefficients[2] # -16.74167 
+q2.ate.2y.arkansas.ols <- q2.m2$coefficients[2] # -10.09477
+
+
+# use OLS in one model, with interaction variable between the term2year and texas0_arkansas1
+q2.m3 <- q2.d3.8[,lm(bills_introduced ~ term2year + texas0_arkansas1 + term2year*texas0_arkansas1)]
+(q2.m3)
+q2.ate.2y.texas.ols2 <- q2.m3$coefficients[2] # -16.74167 
+q2.ate.2y.arkansas.ols2 <- q2.m3$coefficients[2] + q2.m3$coefficients[4] # -10.09477
+
 ```
 
 b. For each state, estimate the standard error of the estimated ATE. 
 
+
+note, from GG, the formula for estimating the standard error of the ATE (no blocking) is
+
+$$\hat{SE}=\sqrt{\frac{\hat{Var}(Y_i(0))}{N-m} + \frac{\hat{Var}(Y_i(1))}{m}}$$
+
+and the formula for estimating the standard error of the ATE with 2 blocks is
+
+$$ SE(\hat{ATE})=\sqrt{(SE_1)^2(\frac{N_1}{N})^2 + (SE_2)^2(\frac{N_2}{N})^2} $$
+
+
 ```{r}
+# estimate the se for each state, using basic methods
+q2.se.func <- function(var0, var1, N, m) {
+    return( sqrt(var0/(N - m) + var1/m) )
+}
+
+q2.se.func(1, 2, 1, 2)
+
+# estimate the se for each state, using libraries
+
+q2 <- {}
+q2$t <- 1
+q2$a <- 1
 
 ```
 
