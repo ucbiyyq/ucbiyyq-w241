@@ -386,7 +386,19 @@ note, equation 3.22 is
 $$SE(\hat{ATE})=\sqrt{\frac{1}{k-1}( \frac{mVar(\bar{Y}_j(0))}{N-m}+\frac{(N-m)Var(\bar{Y}_j(1))}{m}+2Cov(\bar{Y}_j(0),\bar{Y}_j(1)))}$$
 
 ```{r} 
+# create clustering based on {1,2}, {3,4}, {5,6}, ... , {13,14}
+q3$d <- q3$d[,C1:=0]
+for (i in seq(1,nrow(q3$d),2)) {
+    # q3$d[Village==i & Village==i+1, C1:=list(i,i)] #not sure why this doesn't work ...
+    q3$d[Village==i, C1:=list(i)]
+    q3$d[Village==i+1, C1:=list(i)]
 
+}
+head(q3$d)
+plot(jitter(q3$d$Block), q3$d$Y)
+plot(jitter(q3$d$C1), q3$d$Y)
+
+# we can see from the individual values plot that the variance in our simulated clusters, C1, is relatively small
 ```
 
 \newpage
@@ -394,7 +406,18 @@ $$SE(\hat{ATE})=\sqrt{\frac{1}{k-1}( \frac{mVar(\bar{Y}_j(0))}{N-m}+\frac{(N-m)V
 Suppose that clusters are instead formed by grouping observations {1,14}, {2,13}, {3,12}, ... , {7,8}. Use equation (3.22) to calculate the standard error assuming half of the clusters are randomly assigned to treatment. 
 
 ```{r} 
+# create clustering based on {1,14}, {2,13}, {3,12}, ... , {7,8}
+q3$d <- q3$d[,C2:=0]
+for (i in seq(1,nrow(q3$d)/2,1)) {
+    q3$d[Village==i, C2:=list(i)]
+    q3$d[Village==nrow(q3$d)+1-i, C2:=list(i)]
+}
 
+head(q3$d)
+tail(q3$d)
+
+plot(jitter(q3$d$Block), q3$d$Y)
+plot(jitter(q3$d$C2), q3$d$Y)
 ``` 
 
 \newpage
@@ -413,6 +436,21 @@ Apple indicates that they make a profit of $100 every time an iPhone sells and t
 By how much does the ad campaign need to increase the probability of purchase in order to be "worth it" and a positive ROI (supposing there are no long-run effects and all the effects are measured within that week)?
 
 ```{r}
+
+# 
+q4 <- {}
+q4$sim.study <- function(baseline, effect.size, sample.size) {
+    control.units <- rbinom(sample.size, 1, baseline)
+    treatment.units <- rbinom(sample.size, 1, baseline + effect.size)
+    all.units <- c(control.units, treatment.units)
+    treatment.vector <- c(rep(0, sample.size), rep(1, sample.size))
+    p.value <- summary(lm(all.units ~ treatment.vector))$coefficients[2, 4]
+    effect.detected <- p.value < 0.05
+    return(effect.detected)
+}
+
+# get.power(baseline = .1, effect.size = .05, sample.size = 100)
+q4$sim.study(baseline = .1, effect.size = .05, sample.size = 1000000)
 
 ```
 
@@ -438,13 +476,27 @@ Your boss at the newspaper, worried about potential loss of revenue, says he is 
 
 ```
 
+
+
+
+
+
+
 \newpage
 # 5. More Practice #2
 Here you will find a set of data from an auction experiment by John List and David Lucking-Reiley ([2000](https://drive.google.com/file/d/0BxwM1dZBYvxBNThsWmFsY1AyNEE/view?usp=sharing)).  
 
 ```{r}
-d2 <- read.csv("./data/listData.csv")
-head(d2)
+library(data.table)
+q5 <- {}
+q5$d2 <- data.table(read.csv("./data/listData.csv"))
+# head(q5$d2)
+# str(q5$d2)
+# hist(q5$d2$bid)
+# hist(q5$d2$uniform_price_auction)
+# plot(q5$d2$uniform_price_auction, q5$d2$bid)
+# boxplot(bid ~ uniform_price_auction, data=q5$d2) #shows unequal variance in control vs treatment samples
+# q5$d2[,.N,by=uniform_price_auction] #34 samples in each group
 ```
 
 In this experiment, the experimenters invited consumers at a sports card trading show to bid against one other bidder for a pair trading cards.  We abstract from the multi-unit-auction details here, and simply state that the treatment auction format was theoretically predicted to produce lower bids than the control auction format.  We provide you a relevant subset of data from the experiment.
@@ -453,8 +505,57 @@ In this experiment, the experimenters invited consumers at a sports card trading
 ## 5.a. 
 Compute a 95% confidence interval for the difference between the treatment mean and the control mean, using analytic formulas for a two-sample t-test from your earlier statistics course. 
 
+
+
+
+Note, equations for unpaired two-sample t-test, assuming  unequal variances:
+
+t statistic is
+$$t=\frac{\bar{x}_1-\bar{x}_2}{\sqrt{\frac{s_1^2}{n_1}+\frac{s_2^2}{n_2}}}$$
+
+degrees of freedom
+$$df=\frac{[\frac{s_1^2}{n_1}+\frac{s_2^2}{n_2}]^2}{\frac{(s_1^2/n_1)^2}{n_1-1}+\frac{(s_2^2/n_2)^2}{n_2-1}}$$
+
+
+two-sample t confidence interval for $\mu_1 - \mu_2$ with a confidence interval $100(1-\alpha)%$
+
+$$\bar{x}-\bar{y} \pm t_{\alpha/2,v}\sqrt{\frac{s_1^2}{m} + \frac{s_2^2}{n}}$$
+
+
 ```{r}
 
+# computes the means for control and treatment groups
+q5$bids_control <- q5$d2[uniform_price_auction==0,bid]
+q5$bids_treatment <- q5$d2[uniform_price_auction==1,bid]
+q5$n_control <- length(q5$bids_control) #34
+q5$n_treatment <- length(q5$bids_treatment) #34
+q5$mu_control <- q5$d2[uniform_price_auction==0,mean(bid)] #28.82353
+q5$mu_treatment <- q5$d2[uniform_price_auction==1,mean(bid)] #16.61765
+q5$sd_control<- q5$d2[uniform_price_auction==0,sd(bid)] #19.98101
+q5$sd_treatment <- q5$d2[uniform_price_auction==1,sd(bid)] #15.40172
+
+
+
+# see Devore p 358 for the analytic forumla for two-sample t-test
+# see https://www.statsdirect.co.uk/help/parametric_methods/utt.htm
+
+# calcualtes the degrees of freedom for a two-sample test of means, with unequal variances
+# note, is NOT, (N1 + N2) - 2 , because that assumes equal variances
+q5$df <- ( ( (q5$sd_control^2 / q5$n_control) + (q5$sd_treatment^2 / q5$n_treatment) )^2 ) / ( ( (q5$sd_control^2/q5$n_control)^2/(q5$n_control-1) ) + ( (q5$sd_treatment^2/q5$n_treatment)^2/(q5$n_treatment-1) ) ) #61.98287
+
+
+# calculates the t statistic
+q5$t <- ( q5$mu_control-q5$mu_treatment ) / ( sqrt( (q5$sd_control^2)/q5$n_control + (q5$sd_treatment^2)/q5$n_treatment ) ) #2.821144
+
+
+# uses the t statistic to calculate 95% confidence interval
+(q5$mu_control-q5$mu_treatment) + qt(q5$t)
+
+
+# sanity check, use the t.test function
+t.test(q5$bids_control, q5$bids_treatment)
+# t = 2.8211, df = 61.983
+# 95 percent confidence interval: 3.557141 20.854624
 ```
 
 \newpage
