@@ -505,7 +505,7 @@ In this experiment, the experimenters invited consumers at a sports card trading
 ## 5.a. 
 Compute a 95% confidence interval for the difference between the treatment mean and the control mean, using analytic formulas for a two-sample t-test from your earlier statistics course. 
 
-
+**95% confidence interval is about (-20.85, -3.56)**
 
 
 Note, equations for unpaired two-sample t-test, assuming  unequal variances:
@@ -545,28 +545,39 @@ q5$df <- ( ( (q5$sd_control^2 / q5$n_control) + (q5$sd_treatment^2 / q5$n_treatm
 
 
 # calculates the t statistic
-q5$t <- ( q5$mu_control-q5$mu_treatment ) / ( sqrt( (q5$sd_control^2)/q5$n_control + (q5$sd_treatment^2)/q5$n_treatment ) ) #2.821144
+q5$t <- ( q5$mu_treatment-q5$mu_control ) / ( sqrt( (q5$sd_control^2)/q5$n_control + (q5$sd_treatment^2)/q5$n_treatment ) ) # -2.821144
 
 
 # uses the t statistic to calculate 95% confidence interval
-(q5$mu_control-q5$mu_treatment) + qt(q5$t)
+q5$ci.upper <- (q5$mu_treatment-q5$mu_control) - qt(0.05/2, q5$df) * sqrt( (q5$sd_control^2)/q5$n_control + (q5$sd_treatment^2)/q5$n_treatment ) # -3.557141
+
+q5$ci.lower <- (q5$mu_treatment-q5$mu_control) + qt(0.05/2, q5$df) * sqrt( (q5$sd_control^2)/q5$n_control + (q5$sd_treatment^2)/q5$n_treatment )# -20.85462
 
 
-# sanity check, use the t.test function
-t.test(q5$bids_control, q5$bids_treatment)
-# t = 2.8211, df = 61.983
-# 95 percent confidence interval: 3.557141 20.854624
+
+
+# sanity check, use the t.test function to do a two sample t-test on treatment vs control
+t.test(q5$bids_treatment, q5$bids_control)
+# t = -2.8211, df = 61.983, p-value = 0.006421
+# 95 percent confidence interval: -20.854624  -3.557141
 ```
 
 \newpage
 ## 5.b. 
 In plain language, what does this confidence interval mean?
 
+**if we were to repeat our experiment under the same conditions many times, 95% of the time, the true ATE would fall within the range (-20.85, -3.56)**
+
+
 \newpage
 ## 5.c. 
 Regression on a binary treatment variable turns out to give one the same answer as the standard analytic formula you just used.  Demonstrate this by regressing the bid on a binary variable equal to 0 for the control auction and 1 for the treatment auction.
 
 ```{r}
+# use OLS regression of bid on a binary treatment variable
+
+q5$d2
+
 
 ```
 
