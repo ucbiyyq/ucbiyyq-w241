@@ -490,6 +490,7 @@ Here you will find a set of data from an auction experiment by John List and Dav
 library(data.table)
 q5 <- {}
 q5$d2 <- data.table(read.csv("./data/listData.csv"))
+# names(q5)
 # head(q5$d2)
 # str(q5$d2)
 # hist(q5$d2$bid)
@@ -517,7 +518,7 @@ degrees of freedom
 $$df=\frac{[\frac{s_1^2}{n_1}+\frac{s_2^2}{n_2}]^2}{\frac{(s_1^2/n_1)^2}{n_1-1}+\frac{(s_2^2/n_2)^2}{n_2-1}}$$
 
 
-two-sample t confidence interval for $\mu_1 - \mu_2$ with a confidence interval $100(1-\alpha)%$
+two-sample t confidence interval for $\mu_1 - \mu_2$ with a confidence interval $100(1-\alpha)$%
 
 $$\bar{x}-\bar{y} \pm t_{\alpha/2,v}\sqrt{\frac{s_1^2}{m} + \frac{s_2^2}{n}}$$
 
@@ -533,7 +534,7 @@ q5$mu_control <- q5$d2[uniform_price_auction==0,mean(bid)] #28.82353
 q5$mu_treatment <- q5$d2[uniform_price_auction==1,mean(bid)] #16.61765
 q5$sd_control<- q5$d2[uniform_price_auction==0,sd(bid)] #19.98101
 q5$sd_treatment <- q5$d2[uniform_price_auction==1,sd(bid)] #15.40172
-
+q5$ate <- q5$mu_treatment - q5$mu_control # -12.20588
 
 
 # see Devore p 358 for the analytic forumla for two-sample t-test
@@ -553,7 +554,7 @@ q5$ci.upper <- (q5$mu_treatment-q5$mu_control) - qt(0.05/2, q5$df) * sqrt( (q5$s
 
 q5$ci.lower <- (q5$mu_treatment-q5$mu_control) + qt(0.05/2, q5$df) * sqrt( (q5$sd_control^2)/q5$n_control + (q5$sd_treatment^2)/q5$n_treatment )# -20.85462
 
-
+q5$ci <- c(q5$ci.lower, q5$ci.upper)
 
 
 # sanity check, use the t.test function to do a two sample t-test on treatment vs control
@@ -575,10 +576,13 @@ Regression on a binary treatment variable turns out to give one the same answer 
 
 ```{r}
 # use OLS regression of bid on a binary treatment variable
+q5$m1 <- q5$d2[,lm(bid ~ uniform_price_auction)]
+q5$m1
 
-q5$d2
+q5$m1$ate <- unname(q5$m1$coefficients[2]) # -12.20588
 
-
+# check if the OLS answers match up with the analytic answers
+q5$m1$ate - q5$ate # difference is really close to zero, so probably matches
 ```
 
 \newpage
@@ -586,6 +590,12 @@ q5$d2
 Calculate the 95% confidence interval you get from the regression.
 
 ```{r}
+# calculate the ci from the OLS model
+confint(q5$m1)
+q5$m1$ci <- confint(q5$m1)[c(2,4)] # (-20.84416, -3.567603)
+
+# check if the OLS answers match up with the analytic answers
+q5$m1$ci - q5$ci # differences are somewhat close to zero compared to the actual values, so still probably matches
 
 ```
 
