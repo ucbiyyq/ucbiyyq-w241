@@ -61,22 +61,32 @@ Conduct 10,000 simulated random assignments under the sharp null hypothesis. (Do
 # to conduct 10,000 simulated random assignments under the sharp null hypothesis, just need to create a simulate study function and call it 10,000 times
 # then get a distribution of ATEs
 set.seed(87542)
-q1$sim.study <- function() {
-    q1$d3.6 <- q1$d3.6[, success.q1.a := replicate(nrow(q1$d3.6), rbinom(1,1,0.5))]
-    q1$m2 <- q1$d3.6[,lm(views ~ success.q1.a)]
-    q1$ate.q1.a <- q1$m2$coefficients[2]
+# q1$sim.study <- function() {
+#     q1$d3.6 <- q1$d3.6[, success.q1.a := replicate(nrow(q1$d3.6), rbinom(1,1,0.5))]
+#     q1$m2 <- q1$d3.6[,lm(views ~ success.q1.a)]
+#     q1$ate.q1.a <- q1$m2$coefficients[2]
+#     return(q1$ate.q1.a)
+# }
+# q1$sim.results <- replicate(10000, q1$sim.study())
+# hist(q1$sim.results, xlab="simulated ATEs", main=paste("Frequencies of simulated ATEs, vs actual estimated ATE: ",round(q1$ate,3)))
+# abline(v=q1$ate,col="green")
+
+# slightly more efficient code, from Alex's week3 RI code
+q1$sim.study.2 <- function() {
+    q1$d3.6 <- q1$d3.6[, success.q1.a := rbinom(.N,1,p=0.5)]
+    q1$ate.q1.a <- q1$d3.6[,.(mu=mean(views)),by=success.q1.a][,mu[success.q1.a==1]-mu[success.q1.a==0]]
     return(q1$ate.q1.a)
 }
-q1$sim.results <- replicate(10000, q1$sim.study())
-hist(q1$sim.results, xlab="simulated ATEs", main=paste("Frequencies of simulated ATEs, vs actual estimated ATE: ",round(q1$ate,3)))
-abline(v=q1$ate,col="green")
+q1$sim.results <- replicate(10000, q1$sim.study.2())
+hist(q1$sim.results, xlab="simulated ATEs", col="black", main=paste("ri ATEs, vs actual estimated ATE: ",round(q1$ate,3)))
+abline(v=q1$ate,lwd=2,col="red")
 ```
 
 \newpage
 ## 1.b. 
 How many of the simulated random assignments generate an estimated ATE that is at least as large as the actual estimate of the ATE? 
 
-**about 15**
+**about 15 simulated ATEs were at least as large as the actual estimated ATE**
 
 ```{r}
 data.table(q1$sim.results)[,sim.ate.as.large.as.actual.ate:=(q1$sim.results >= q1$ate)][,.N,by=sim.ate.as.large.as.actual.ate]
@@ -147,7 +157,7 @@ q2$d3.8 <- data.table( read.dta("./data/Titiunik.2010.dta") )
 # hist(q2$d3.8$texas0_arkansas1)
 # q2$d3.8[texas0_arkansas1==0,plot(bills_introduced ~ term2year,main="Texas")]
 # q2$d3.8[texas0_arkansas1==1,plot(bills_introduced ~ term2year,main="Arkansas")]
-q2$d3.8[,interaction.plot(term2year,texas0_arkansas1,bills_introduced)]
+# q2$d3.8[,interaction.plot(term2year,texas0_arkansas1,bills_introduced)]
 ```
 
 \newpage
@@ -200,9 +210,9 @@ q2$ate.overall.bad.ols <- q2$m4$coefficients[2] # -14.51515
 ## 2.b. 
 For each state, estimate the standard error of the estimated ATE. 
 
-**for texas, se is about 10**
+**for Texas, se is about 10 bills**
 
-**for arkansas, se is about 4**
+**for Arkansas, se is about 4 bills**
 
 
 note, from GG, equation 3.6 for estimating the standard error of the ATE (no blocking) is:
@@ -213,7 +223,7 @@ $$\hat{SE}=\sqrt{\frac{\hat{Var}(Y_i(0))}{N-m} + \frac{\hat{Var}(Y_i(1))}{m}}$$
 
 
 ```{r}
-# estimate the se for each state, using basic methods
+# estimate the se for each state, using analytical formulas
 # var0 = variance of control, n0 = number of units in control
 # var1 = variance of treatment, n1 = number of units in treatment
 q2$se.func <- function(var0, var1, n0, n1) {
@@ -226,10 +236,13 @@ q2$var0.texas <- var(q2$d3.8[term2year==0 & texas0_arkansas1==0,bills_introduced
 q2$var1.texas <- var(q2$d3.8[term2year==1 & texas0_arkansas1==0,bills_introduced]) #var1 for texas, 413.6952
 q2$var0.arkansas <- var(q2$d3.8[term2year==0 & texas0_arkansas1==1,bills_introduced]) #var0 for arkansas, 148.5956
 q2$var1.arkansas <- var(q2$d3.8[term2year==1 & texas0_arkansas1==1,bills_introduced]) #var1 for arkansas, 50.25163
+q2$n.texas <- q2$d3.8[texas0_arkansas1==0,.N] #n for texas, 31
 q2$n0.texas <- q2$d3.8[term2year==0 & texas0_arkansas1==0,.N] #n0 for texas, 16
 q2$n1.texas <- q2$d3.8[term2year==1 & texas0_arkansas1==0,.N] #n1 for texas, 15
+q2$n.arkansas <- q2$d3.8[texas0_arkansas1==1,.N] #n for arkansas, 35
 q2$n0.arkansas <- q2$d3.8[term2year==0 & texas0_arkansas1==1,.N] #n0 for arkansas, 17
 q2$n1.arkansas <- q2$d3.8[term2year==1 & texas0_arkansas1==1,.N] #n1 for arkansas, 18
+q2$n.all <- q2$d3.8[,.N] #n for all, 66
 
 q2$se.texas <- q2$se.func(q2$var0.texas, q2$var1.texas, q2$n0.texas, q2$n1.texas) #se for texas block, 9.345871
 q2$se.arkansas <- q2$se.func(q2$var0.arkansas, q2$var1.arkansas, q2$n0.arkansas, q2$n1.arkansas)#se for arkansas block, 3.395979
@@ -238,8 +251,22 @@ q2$se.arkansas <- q2$se.func(q2$var0.arkansas, q2$var1.arkansas, q2$n0.arkansas,
 
 
 
-# estimate the se for each state, using libraries
-# TBD
+# estimate the robust se for each state, using the regression models
+library(sandwich)
+# regression for texas
+summary(q2$m1)
+q2$m1$vcov <- vcovHC(q2$m1, type="HC3")
+q2$m1$r.se <- sqrt(diag(q2$m1$vcov))
+q2$m1$r.se # term2year robust se is 9.659175
+
+# regression for arkansas
+summary(q2$m2)
+q2$m2$vcov <- vcovHC(q2$m2, type="HC3")
+q2$m2$r.se <- sqrt(diag(q2$m2$vcov))
+q2$m2$r.se # term2year robust se is 3.499029
+
+# not sure why the robust standard error doesn't quite match up with the analytical method
+# though if we're measuring number of whole bills, it still matches up to Texas se 10, and Arkansas se 4. Close enough for government work.
 
 ```
 
@@ -255,8 +282,8 @@ $$ATE=\sum_{j=1}^{J}{\frac{N_j}{N}ATE_j}$$
 
 ```{r}
 # total ATE is the sum of the ATEs within each block, scaled by the number of units in each block
-q2$ate.total = (q2$n.texas/q2$n.all) * q2$ate.2y.texas.basic + (q2$n.arkansas/q2$n.all) * q2$ate.2y.arkansas.basic
-(q2$ate.total) # -13.2168
+q2$ate.total <- (q2$n.texas/q2$n.all) * q2$ate.2y.texas.basic + (q2$n.arkansas/q2$n.all) * q2$ate.2y.arkansas.basic
+q2$ate.total # -13.2168
     
 ```
 
@@ -272,7 +299,7 @@ Explain why, in this study, simply pooling the data for the two states and compa
 ## 2.e. 
 Insert the estimated standard errors into equation (3.12) to estimate the stand error for the overall ATE. 
 
-**overall se is about 18**
+**overall se is about 18 bills**
 
 The equation 3.12 for estimating the standard error of the ATE with 2 blocks is:
 
@@ -297,40 +324,52 @@ Use randomization inference to test the sharp null hypothesis that the treatment
 
 ```{r}
 # for a round of randomization inference, we will randomly assign senators to 2-year terms for both texas and arkansas
-set.seed(12659)
-q2$d3.8 <- q2$d3.8[,term2yearRI:=replicate(nrow(q2$d3.8), rbinom(1,1,0.5))]
+# set.seed(12659)
+# q2$d3.8 <- q2$d3.8[,term2yearRI:=replicate(nrow(q2$d3.8), rbinom(1,1,0.5))]
+# 
+# # use basic methods to calculate the ATE for each state
+# q2$ate.texas.ri <- q2$d3.8[texas0_arkansas1==0 & term2yearRI==1,mean(bills_introduced)] - q2$d3.8[texas0_arkansas1==0 & term2yearRI==0,mean(bills_introduced)]
+# # -19.48246
+# 
+# q2$ate.arkansas.ri <- q2$d3.8[texas0_arkansas1==1 & term2yearRI==1,mean(bills_introduced)] - q2$d3.8[texas0_arkansas1==1 & term2yearRI==0,mean(bills_introduced)]
+# # -0.7156863
 
-# use basic methods to calculate the ATE for each state
-q2$ate.texas.ri <- q2$d3.8[texas0_arkansas1==0 & term2yearRI==1,mean(bills_introduced)] - q2$d3.8[texas0_arkansas1==0 & term2yearRI==0,mean(bills_introduced)]
-# -19.48246
 
-q2$ate.arkansas.ri <- q2$d3.8[texas0_arkansas1==1 & term2yearRI==1,mean(bills_introduced)] - q2$d3.8[texas0_arkansas1==1 & term2yearRI==0,mean(bills_introduced)]
-# -0.7156863
 
 
 # creates a function to simulate the randomization inference
-q2$sim.study <- function() {
-    q2$d3.8 <- q2$d3.8[,term2yearRI:=replicate(nrow(q2$d3.8), rbinom(1,1,0.5))]
-    q2$m5 <-  q2$d3.8[,lm(bills_introduced ~ term2yearRI + texas0_arkansas1 + term2yearRI*texas0_arkansas1)]
-    q2$ate.texas.ri <- q2$m5$coefficients[2]
-    q2$ate.arkansas.ri <- q2$m5$coefficients[2] + q2$m5$coefficients[4]
+set.seed(12659)
+# q2$sim.study <- function() {
+#     q2$d3.8 <- q2$d3.8[,term2yearRI:=replicate(nrow(q2$d3.8), rbinom(1,1,0.5))]
+#     q2$m5 <-  q2$d3.8[,lm(bills_introduced ~ term2yearRI + texas0_arkansas1 + term2yearRI*texas0_arkansas1)]
+#     q2$ate.texas.ri <- q2$m5$coefficients[2]
+#     q2$ate.arkansas.ri <- q2$m5$coefficients[2] + q2$m5$coefficients[4]
+#     return(list(q2$ate.texas.ri, q2$ate.arkansas.ri))
+# }
+# q2$sim.results <- replicate(10000, q2$sim.study())
+
+# more efficient code from Alex's week3 RI
+q2$sim.study.2 <- function() {
+    q2$d3.8 <- q2$d3.8[,term2yearRI:=rbinom(.N, 1, p = 0.5)]
+    q2$ate.texas.ri <- q2$d3.8[texas0_arkansas1==0,.(mu=mean(bills_introduced)),by=term2yearRI][,mu[term2yearRI==1]-mu[term2yearRI==0]]
+    q2$ate.arkansas.ri <- q2$d3.8[texas0_arkansas1==1,.(mu=mean(bills_introduced)),by=term2yearRI][,mu[term2yearRI==1]-mu[term2yearRI==0]]
     return(list(q2$ate.texas.ri, q2$ate.arkansas.ri))
 }
-q2$sim.results <- replicate(10000, q2$sim.study())
+q2$sim.results <- replicate(10000, q2$sim.study.2())
 
 # extracts the simulated ATEs for texas and arkansas
 q2$ate.texas.sim <- unlist( q2$sim.results[1,1:length(q2$sim.results)/2] )
-hist(q2$ate.texas.sim, main="simulated estimated ATE for Texas, vs actual estimated ATE", xlab="simulated ATEs")
-abline(v=q2$ate.2y.texas.basic,col="green")
+hist(q2$ate.texas.sim, xlab="simulated ATEs", col="black", main=paste("for Texas: ri ATEs vs actual estimated ATE: ",floor(q2$ate.2y.texas.basic)))
+abline(v=q2$ate.2y.texas.basic,lwd=2,col="red")
 
 q2$ate.arkansas.sim <- unlist( q2$sim.results[2,1:length(q2$sim.results)/2] )
-hist(q2$ate.arkansas.sim, main="simulated estimated ATE for Arkansas, vs actual estimated ATE", xlab="simulated ATEs")
-abline(v=q2$ate.2y.arkansas.basic,col="green")
+hist(q2$ate.arkansas.sim, xlab="simulated ATEs", col="black", main=paste("for Arkansas: ri ATEs vs actual estimated ATE: ",floor(q2$ate.2y.arkansas.basic)))
+abline(v=q2$ate.2y.arkansas.basic,lwd=2,col="red")
 
 
 # calculates the implied p-value for each state
-mean(q2$ate.texas.sim < q2$ate.2y.texas.basic) #p-value for texas, 0.04470224
-mean(q2$ate.arkansas.sim < q2$ate.2y.arkansas.basic) #p-value for arkansas, 0.002100105
+mean(q2$ate.texas.sim < q2$ate.2y.texas.basic) #p-value for texas, 0.04270214
+mean(q2$ate.arkansas.sim < q2$ate.2y.arkansas.basic) #p-value for arkansas, 0.00180009
 
 # both p-values are < than 0.05, so we can reject the sharp null hypothesis
 ``` 
@@ -370,6 +409,7 @@ q3 <- {}
 q3$d <- data.table( read.csv("./data/ggChapter3.csv") )
 # summary(q3$d)
 # str(q3$d)
+# head(q3$d)
 # hist(q3$d$Village)
 # hist(q3$d$Y)
 # hist(q3$d$D)
@@ -388,17 +428,28 @@ $$SE(\hat{ATE})=\sqrt{\frac{1}{k-1}( \frac{mVar(\bar{Y}_j(0))}{N-m}+\frac{(N-m)V
 ```{r} 
 # create clustering based on {1,2}, {3,4}, {5,6}, ... , {13,14}
 q3$d <- q3$d[,C1:=0]
-for (i in seq(1,nrow(q3$d),2)) {
-    # q3$d[Village==i & Village==i+1, C1:=list(i,i)] #not sure why this doesn't work ...
-    q3$d[Village==i, C1:=list(i)]
-    q3$d[Village==i+1, C1:=list(i)]
-
+q3$make.cluster.1 <- function() {
+    for (i in seq(1,nrow(q3$d),2)) {
+        # q3$d[Village==i & Village==i+1, C1:=list(i,i)] #not sure why this doesn't work ...
+        q3$d[Village==i, C1:=list(i)]
+        q3$d[Village==i+1, C1:=list(i)]
+    }    
 }
-head(q3$d)
-plot(jitter(q3$d$Block), q3$d$Y)
-plot(jitter(q3$d$C1), q3$d$Y)
+q3$make.cluster.1()
 
-# we can see from the individual values plot that the variance in our simulated clusters, C1, is relatively small
+# head(q3$d)
+q3$d[,plot(Y ~ jitter(Block,0.1), xlab="Block", main="Y by Block")]
+q3$d[,plot(Y ~ jitter(C1,0.1), xlab="Clustering 1", main="Y by Cluster")]
+
+# we can see from the individual values plot that the variance in our simulated clusters, C1, is relatively small compared to the variances in our Blocks
+
+
+
+
+
+
+
+
 ```
 
 \newpage
@@ -408,21 +459,39 @@ Suppose that clusters are instead formed by grouping observations {1,14}, {2,13}
 ```{r} 
 # create clustering based on {1,14}, {2,13}, {3,12}, ... , {7,8}
 q3$d <- q3$d[,C2:=0]
-for (i in seq(1,nrow(q3$d)/2,1)) {
-    q3$d[Village==i, C2:=list(i)]
-    q3$d[Village==nrow(q3$d)+1-i, C2:=list(i)]
+q3$make.cluster.2 <- function() {
+    for (i in seq(1,nrow(q3$d)/2,1)) {
+        q3$d[Village==i, C2:=list(i)]
+        q3$d[Village==nrow(q3$d)+1-i, C2:=list(i)]
+    }
 }
+q3$make.cluster.2()
+# head(q3$d)
+# tail(q3$d)
 
-head(q3$d)
-tail(q3$d)
+q3$d[,plot(Y ~ jitter(Block,0.1), xlab="Block", main="Y by Block")]
+q3$d[,plot(Y ~ C2, xlab="Clustering 2", main="Y by Cluster")]
 
-plot(jitter(q3$d$Block), q3$d$Y)
-plot(jitter(q3$d$C2), q3$d$Y)
+
+
+
+
+
 ``` 
 
 \newpage
 ## 3.c. 
 Why do the two methods of forming clusters lead to different standard errors? What are the implications for the design of cluster randomized experiments? 
+
+
+
+
+
+
+
+
+
+
 
 
 \newpage
@@ -493,10 +562,16 @@ q5$d2 <- data.table(read.csv("./data/listData.csv"))
 # names(q5)
 # head(q5$d2)
 # str(q5$d2)
-# hist(q5$d2$bid)
-# hist(q5$d2$uniform_price_auction)
-# plot(q5$d2$uniform_price_auction, q5$d2$bid)
-# boxplot(bid ~ uniform_price_auction, data=q5$d2) #shows unequal variance in control vs treatment samples
+# q5$d2[,hist(bid)]
+# q5$d2[,hist(uniform_price_auction)]
+# q5$d2[,plot(jitter(bid,factor=0.1) ~ jitter(uniform_price_auction,factor=0.1))]
+
+# fancier way to vizualize the difference in variance and means, between control vs treatment groups
+# q5$d2[uniform_price_auction==0,plot(sort(bid), pch=19, col="darkorange")]
+# q5$d2[uniform_price_auction==1,points(sort(bid), pch=20, col="steelblue")]
+
+# q5$d2[,boxplot(bid ~ uniform_price_auction)] #suggests unequal variance in control vs treatment groups
+
 # q5$d2[,.N,by=uniform_price_auction] #34 samples in each group
 ```
 
@@ -506,7 +581,7 @@ In this experiment, the experimenters invited consumers at a sports card trading
 ## 5.a. 
 Compute a 95% confidence interval for the difference between the treatment mean and the control mean, using analytic formulas for a two-sample t-test from your earlier statistics course. 
 
-**95% confidence interval is about (-20.85, -3.56)**
+**95% confidence interval is about (-20.85, -3.56) USD**
 
 
 Note, equations for unpaired two-sample t-test, assuming  unequal variances:
@@ -540,8 +615,8 @@ q5$ate <- q5$mu_treatment - q5$mu_control # -12.20588
 # see Devore p 358 for the analytic forumla for two-sample t-test
 # see https://www.statsdirect.co.uk/help/parametric_methods/utt.htm
 
-# calcualtes the degrees of freedom for a two-sample test of means, with unequal variances
-# note, is NOT, (N1 + N2) - 2 , because that assumes equal variances
+# calculates the degrees of freedom for a two-sample test of means, with unequal variances
+# note, not using, (N1 + N2) - 2 , because that assumes equal variances
 q5$df <- ( ( (q5$sd_control^2 / q5$n_control) + (q5$sd_treatment^2 / q5$n_treatment) )^2 ) / ( ( (q5$sd_control^2/q5$n_control)^2/(q5$n_control-1) ) + ( (q5$sd_treatment^2/q5$n_treatment)^2/(q5$n_treatment-1) ) ) #61.98287
 
 
@@ -549,25 +624,50 @@ q5$df <- ( ( (q5$sd_control^2 / q5$n_control) + (q5$sd_treatment^2 / q5$n_treatm
 q5$t <- ( q5$mu_treatment-q5$mu_control ) / ( sqrt( (q5$sd_control^2)/q5$n_control + (q5$sd_treatment^2)/q5$n_treatment ) ) # -2.821144
 
 
-# uses the t statistic to calculate 95% confidence interval
+# uses the t statistic to calculate 95% confidence interval e.g. (mu +- 1.96 * se)
 q5$ci.upper <- (q5$mu_treatment-q5$mu_control) - qt(0.05/2, q5$df) * sqrt( (q5$sd_control^2)/q5$n_control + (q5$sd_treatment^2)/q5$n_treatment ) # -3.557141
 
 q5$ci.lower <- (q5$mu_treatment-q5$mu_control) + qt(0.05/2, q5$df) * sqrt( (q5$sd_control^2)/q5$n_control + (q5$sd_treatment^2)/q5$n_treatment )# -20.85462
 
-q5$ci <- c(q5$ci.lower, q5$ci.upper)
+q5$ci <- c(q5$ci.lower, q5$ci.upper) # -20.854624  -3.557141
 
 
-# sanity check, use the t.test function to do a two sample t-test on treatment vs control
-t.test(q5$bids_treatment, q5$bids_control)
+
+
+# sanity check: do it the way Alex does it in week3box3
+
+# calculate ate using data.tables
+q5$ate.alex <- q5$d2[,.(mu=mean(bid)),by=uniform_price_auction][,mu[1]-mu[2]] # -12.20588
+
+
+# use the t.test function to do a two sample t-test on treatment vs control
+q5$d2 <- q5$d2[,uniform_price_auction_inv := 1-uniform_price_auction]
+# q5$d2[,var.test(bid ~ uniform_price_auction)]
+q5$d2[,var.test(bid ~ uniform_price_auction_inv)]
+# actually, var.test shows that there is insufficient evidence to reject the null hypothesis that the variances of bid-by-uniform_price_auction stay equal
+# note to self, do this first next time ...
+
+
+# t-test assuming unequal variances
+# q5$d2[,t.test(bid ~ uniform_price_auction, var.equal=FALSE)] # don't use: formula flips the base group for some reason
+q5$d2[,t.test(bid ~ uniform_price_auction_inv, var.equal=FALSE)] # correct formula given the negative treament effect
+# t.test(q5$bids_treatment, q5$bids_control, var.equal=FALSE) # equivalent
 # t = -2.8211, df = 61.983, p-value = 0.006421
 # 95 percent confidence interval: -20.854624  -3.557141
+
+# t-test assuming equal variances
+q5$d2[,t.test(bid ~ uniform_price_auction_inv, var.equal=TRUE)]
+# t = -2.8211, df = 66, p-value = 0.006315
+# 95 percent confidence interval: -20.844162  -3.567603
+
+# as it turns out, in this case, assuming equal or unequal variances didn't seem to matter much
 ```
 
 \newpage
 ## 5.b. 
 In plain language, what does this confidence interval mean?
 
-**if we were to repeat our experiment under the same conditions many times, 95% of the time, the true ATE would fall within the range (-20.85, -3.56)**
+**if we were to repeat our experiment under the same conditions many times, 95% of the time, the true ATE would fall within the range (-20.85, -3.56) USD**
 
 
 \newpage
@@ -577,7 +677,7 @@ Regression on a binary treatment variable turns out to give one the same answer 
 ```{r}
 # use OLS regression of bid on a binary treatment variable
 q5$m1 <- q5$d2[,lm(bid ~ uniform_price_auction)]
-q5$m1
+summary(q5$m1)
 
 q5$m1$ate <- unname(q5$m1$coefficients[2]) # -12.20588
 
@@ -589,13 +689,18 @@ q5$m1$ate - q5$ate # difference is really close to zero, so probably matches
 ## 5.d. 
 Calculate the 95% confidence interval you get from the regression.
 
+**confidence interval from the regression is about (-20.84, -3.57) USD**
+
 ```{r}
-# calculate the ci from the OLS model
-confint(q5$m1)
-q5$m1$ci <- confint(q5$m1)[c(2,4)] # (-20.84416, -3.567603)
+# calculate the ci from our linear model
+q5$m1$ci <- q5$d2[,t.test(bid ~ uniform_price_auction_inv, var.equal=TRUE)]$conf.int[c(1,2)] # -20.844162  -3.567603
+q5$m1$ci
+
+# confint(q5$m1) # another equivalent way
+# q5$m1$ci <- confint(q5$m1)[c(2,4)] # (-20.84416, -3.567603)
 
 # check if the OLS answers match up with the analytic answers
-q5$m1$ci - q5$ci # differences are somewhat close to zero compared to the actual values, so still probably matches
+q5$m1$ci - q5$ci # differences are somewhat close to zero compared to the actual values (roughly 1 cent difference), so still probably matches
 
 ```
 
@@ -603,26 +708,97 @@ q5$m1$ci - q5$ci # differences are somewhat close to zero compared to the actual
 ## 5.e. 
 On to p-values. What p-value does the regression report? Note: please use two-tailed tests for the entire problem.
 
-```{r}
+**the regression reports a p-value of about 0.006**
 
+```{r}
+library(sandwich)
+
+# coef(q5$m1)
+summary(q5$m1)
+q5$m1$pval <- summary(q5$m1)$coefficients[8]
+q5$m1$pval
+# with our linear model, we have a p-value of about 0.00631 for the uniform_price_auction
+
+
+
+# for completeness, calculate the robust se, ...
+# i.e. if we can't assume constant variance of bid by uniform_price_auction
+q5$m1$vcov <- vcovHC(q5$m1, type="HC3")
+# q5$m1$vcov # var-cov matrix
+
+q5$m1$r.se <- sqrt(diag(q5$m1$vcov))
+q5$m1$r.se
 ```
 
 \newpage
 ## 5.f. 
 Now compute the same p-value using randomization inference.
 
-```{r}
+**randomization inference also resulted in p-value of about 0.006**
 
+```{r}
+set.seed(2382)
+q5$sim.ri <- function(numloops){
+    # init empty results list, using vector makes subsequent use slightly faster
+    ri.res <- vector(mode="numeric", length=numloops)
+    # do the ri repeatedly, assuming the sharp null, and assign ate to our results vector
+    for(i in 1:numloops) {
+        # randomly assign to treatment or control by fair coin flip
+        q5$d2 <- q5$d2[,ri:=rbinom(.N, 1, p = 0.5)]
+        # then calculate the ate, as the difference in means between treatment vs control
+        ri.res[i] <- q5$d2[,.(mu=mean(bid)),by=ri][,mu[ri==1]-mu[ri==0]]
+    }
+    return(ri.res)
+}
+q5$ri.res <- q5$sim.ri(10000)
+
+
+# visualize the ri results, vs the previously calculated ate 
+hist(q5$ri.res, col="black", main=paste("ri ates vs estimated ate of ", round(q5$ate,3)))
+abline(v=q5$ate,col="red",lwd=2)
+
+# calculate the p-value, 2-tailed
+q5$ri.pval <- mean(abs(q5$ri.res) > abs(q5$ate))
+q5$ri.pval
+
+# p-value from ri is smaller than 0.05, so we can reject the sharp null
 ```
 
 \newpage
 ## 5.g. 
 Compute the same p-value again using analytic formulas for a two-sample t-test from your earlier statistics course. (Also see part (a).)
 
+note, formula for p-values for z tests is
+
+$$P-value: P=
+\begin{cases}
+1-\Phi(z) & \text{for upper-tailed z test} \\
+\Phi(z) & \text{for lower-tailed z test} \\
+2[1-\Phi(|z|)] & \text{for two-tailed z test}
+\end{cases}$$
+
+Where $\Phi(z)$ is the cumulative area under the z curve
+
+similarly for p-values for t tests we are looking for the cumulative area under the t curve (t-curve also shaped by the degrees of freedom)
+
 ```{r}
 
+# see Devore p 332 and 333 for analytic formula for p-values for z tests and for t tests
+# we take our t statistic and degrees of freedom from (a)
+# names(q5)
+# q5$t
+# q5$df
+
+# and do a lookup on the absolute value of the t statistic, given our df 
+2*pt(abs(q5$t), q5$df, lower.tail=FALSE) # assuming unequal variance
+2*pt(abs(q5$t), (q5$n_control+q5$n_treatment)-2, lower.tail=FALSE) # assuming equal variances
+
+# p-values are pretty close to the ones we got from the regression and the ri
 ```
 
 \newpage
 ## 5.h. 
 Compare the two p-values in parts (e) and (f). Are they much different? Why or why not? How might your answer to this question change if the sample size were different?
+
+
+**The two p-values are very close to each other. As we do more randomization inference loops, the simulated results start matching up to the regression. Doing ri with 1k loops sometimes got us p-values of 0.005 or 0.007. But once we started doing 10k loops, the p-value from the ri seemed to stick to around 0.006. Also, we only had 34 samples in each group. Larger sample sizes might push the p-values of both ri and regression down towards zero.**
