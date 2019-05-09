@@ -448,12 +448,19 @@ q3$d[,plot(Y ~ jitter(Block,0.1), xlab="Block", main="Y by Block")]
 q3$d[,plot(Y ~ jitter(C1,0.25), xlab="Clustering 1", main="Y by Cluster")]
 # we can see from the individual values plot that the variance in our simulated clusters, C1, is relatively small compared to the variances in our Blocks
 
-dcast(q3$d[,.N,by=c("C1","Block")], C1~Block)
-# per the prompt, can assume clusters 9, 11, 13 (block 2) are in treatment, and clusters 1, 3, 5, 7 (block 1) are in control
+# per the prompt, randomly assign 3 clusters to treatment, and 4 to control
+# ... creates assignment table to guarantee 3-4 cluster ratio
+set.seed(8374)
+q3$assignments <- unique(q3$d[,.(C1)])[,D.C1 := sample(c(1,1,1,0,0,0,0), .N, replace=FALSE)]
+# ... joins it to the main data table
+setkey(q3$assignments, C1)
+setkey(q3$d, C1)
+q3$d <- q3$d[q3$assignments, ":=" (D.C1=i.D.C1)]
+q3$d[,.(C1,Village,D.C1)][order(C1,Village)]
 
 # calculate the observed Y and assignment variable, given our assignment to treatment and control by clustering 1
-q3$d <- q3$d[,D.C1 := ifelse(C1 %in% c(9,11,13), 1,0)][,Y.C1 := ifelse(D.C1==1, Y1,Y0)]
-# q3$d[,.(C1,Y0,Y1,D.C1,Y.C1)]
+q3$d <- q3$d[,Y.C1 := ifelse(D.C1==1, Y1,Y0)]
+q3$d[,.(C1,Village,D.C1,Y.C1)][order(C1,Village)]
 
 
 
@@ -463,6 +470,7 @@ q3$d <- q3$d[,D.C1 := ifelse(C1 %in% c(9,11,13), 1,0)][,Y.C1 := ifelse(D.C1==1, 
 # q3$m1 <- q3$d[,lm(Y ~ D)] # the cluster.vcov function doesn't seem to like this model for some reason
 q3$m1 <- lm(Y.C1 ~ D.C1, data=q3$d)
 q3$m1
+
 
 # # this is only for robust standard errors, need to do the clustered robust standard errors
 # q3$m1$vcovHC <- vcovHC(q3$m1)
